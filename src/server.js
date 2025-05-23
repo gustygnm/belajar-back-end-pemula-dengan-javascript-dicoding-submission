@@ -4,10 +4,12 @@ const { nanoid } = require('nanoid');
 const books = [];
 
 const server = http.createServer((req, res) => {
-  const { method, url } = req;
+  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+  const pathname = parsedUrl.pathname;
+  const { method } = req;
 
   // POST /books
-  if (url === '/books' && method === 'POST') {
+  if (pathname === '/books' && method === 'POST') {
     let body = '';
     req.on('data', (chunk) => (body += chunk));
     req.on('end', () => {
@@ -57,56 +59,50 @@ const server = http.createServer((req, res) => {
     });
   }
 
-  // GET /books
-  else if (method === 'GET') {
-    const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
-    const pathname = parsedUrl.pathname;
-  
-    if (pathname === '/books') {
-      const name = parsedUrl.searchParams.get('name');
-      const reading = parsedUrl.searchParams.get('reading');
-      const finished = parsedUrl.searchParams.get('finished');
-  
-      let filteredBooks = books;
-  
-      if (name !== null) {
-        filteredBooks = filteredBooks.filter((b) =>
-          b.name.toLowerCase().includes(name.toLowerCase())
-        );
-      }
-  
-      if (reading !== null) {
-        filteredBooks = filteredBooks.filter((b) =>
-          b.reading === (reading === '1')
-        );
-      }
-  
-      if (finished !== null) {
-        filteredBooks = filteredBooks.filter((b) =>
-          b.finished === (finished === '1')
-        );
-      }
-  
-      const responseBooks = filteredBooks.map(({ id, name, publisher }) => ({
-        id,
-        name,
-        publisher,
-      }));
-  
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-          status: 'success',
-          data: {
-            books: responseBooks,
-          },
-        })
+  // GET /books (with optional filters)
+  else if (pathname === '/books' && method === 'GET') {
+    const name = parsedUrl.searchParams.get('name');
+    const reading = parsedUrl.searchParams.get('reading');
+    const finished = parsedUrl.searchParams.get('finished');
+
+    let filteredBooks = books;
+
+    if (name !== null) {
+      filteredBooks = filteredBooks.filter((b) =>
+        b.name.toLowerCase().includes(name.toLowerCase())
       );
     }
+
+    if (reading !== null) {
+      filteredBooks = filteredBooks.filter((b) =>
+        b.reading === (reading === '1')
+      );
+    }
+
+    if (finished !== null) {
+      filteredBooks = filteredBooks.filter((b) =>
+        b.finished === (finished === '1')
+      );
+    }
+
+    const responseBooks = filteredBooks.map(({ id, name, publisher }) => ({
+      id,
+      name,
+      publisher,
+    }));
+
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      status: 'success',
+      data: {
+        books: responseBooks,
+      },
+    }));
   }
 
   // GET /books/{bookId}
-  else if (url.startsWith('/books/') && method === 'GET') {
-    const id = url.split('/')[2];
+  else if (pathname.startsWith('/books/') && method === 'GET') {
+    const id = pathname.split('/')[2];
     const book = books.find((b) => b.id === id);
 
     if (!book) {
@@ -127,8 +123,8 @@ const server = http.createServer((req, res) => {
   }
 
   // PUT /books/{bookId}
-  else if (url.startsWith('/books/') && method === 'PUT') {
-    const id = url.split('/')[2];
+  else if (pathname.startsWith('/books/') && method === 'PUT') {
+    const id = pathname.split('/')[2];
     let body = '';
     req.on('data', (chunk) => (body += chunk));
     req.on('end', () => {
@@ -182,8 +178,8 @@ const server = http.createServer((req, res) => {
   }
 
   // DELETE /books/{bookId}
-  else if (url.startsWith('/books/') && method === 'DELETE') {
-    const id = url.split('/')[2];
+  else if (pathname.startsWith('/books/') && method === 'DELETE') {
+    const id = pathname.split('/')[2];
     const index = books.findIndex((b) => b.id === id);
 
     if (index === -1) {
